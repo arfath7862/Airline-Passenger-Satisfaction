@@ -1,77 +1,67 @@
 import pandas as pd
-import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_auc_score, roc_curve
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix
 
-# Load the dataset
+# Load dataset
 df = pd.read_csv("airline_passenger_satisfaction_high_accuracy.csv")
 
-# Show first 5 rows
-print(df.head())
+# Basic EDA
+print("\nDataset Info:")
+print(df.info())
 
-# ----------------------------------------
-# STEP 1: Exploratory Data Analysis (EDA)
-# ----------------------------------------
+print("\nMissing Values:")
+print(df.isnull().sum())
 
-# Gender Distribution
-sns.countplot(x='Gender', data=df)
-plt.title("Passenger Gender Distribution")
-plt.show()
+print("\nClass Distribution:")
+print(df['satisfaction'].value_counts())
 
-# Satisfaction by Class
-sns.countplot(x='Class', hue='satisfaction', data=df)
-plt.title("Satisfaction by Class")
-plt.show()
+# Drop columns not needed (if any)
+if 'Unnamed: 0' in df.columns:
+    df.drop('Unnamed: 0', axis=1, inplace=True)
 
-# Satisfaction by Type of Travel
-sns.countplot(x='Type of Travel', hue='satisfaction', data=df)
-plt.title("Satisfaction by Type of Travel")
-plt.show()
+# Encode categorical features
+categorical_cols = df.select_dtypes(include='object').columns
+le = LabelEncoder()
+for col in categorical_cols:
+    df[col] = le.fit_transform(df[col])
 
-# Correlation Heatmap (after encoding)
-df_encoded = df.copy()
-label_enc = LabelEncoder()
-df_encoded['Gender'] = label_enc.fit_transform(df_encoded['Gender'])
-df_encoded['Customer Type'] = label_enc.fit_transform(df_encoded['Customer Type'])
-df_encoded['Type of Travel'] = label_enc.fit_transform(df_encoded['Type of Travel'])
-df_encoded['Class'] = label_enc.fit_transform(df_encoded['Class'])
-df_encoded['satisfaction'] = label_enc.fit_transform(df_encoded['satisfaction'])
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(df_encoded.corr(), annot=True, cmap='coolwarm')
-plt.title("Correlation Heatmap")
-plt.show()
-
-# ----------------------------------------
-# STEP 2: Model Training
-# ----------------------------------------
-
-# Encode original dataframe for model training
-label_enc = LabelEncoder()
-df['Gender'] = label_enc.fit_transform(df['Gender'])
-df['Customer Type'] = label_enc.fit_transform(df['Customer Type'])
-df['Type of Travel'] = label_enc.fit_transform(df['Type of Travel'])
-df['Class'] = label_enc.fit_transform(df['Class'])
-df['satisfaction'] = label_enc.fit_transform(df['satisfaction'])
-
-# Split features and target
-X = df.drop(['satisfaction'], axis=1)
-y = df['satisfaction']
+# Feature-target split
+X = df.drop("satisfaction", axis=1)
+y = df["satisfaction"]
 
 # Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train model
-clf = RandomForestClassifier()
-clf.fit(X_train, y_train)
+# Logistic Regression model
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)
 
-# Predict and evaluate
-y_pred = clf.predict(X_test)
+y_pred = model.predict(X_test)
+y_proba = model.predict_proba(X_test)[:, 1]
+
+# Evaluation
+print("\nAccuracy:", accuracy_score(y_test, y_pred))
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
-print("Confusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
+roc_auc = roc_auc_score(y_test, y_proba)
+print("\nROC AUC Score:", roc_auc)
+
+# Plot ROC Curve
+fpr, tpr, thresholds = roc_curve(y_test, y_proba)
+plt.figure()
+plt.plot(fpr, tpr, label=f'Logistic Regression (AUC = {roc_auc:.2f})')
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend()
+plt.grid(True)
+plt.show()

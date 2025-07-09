@@ -23,3 +23,9 @@ Airlines collect vast amounts of customer feedback, but lack automated tools to 
 
 ##  Project Structure
 
+## Screenshots / Visuals
+
+### ROC Curve
+![ROC Curve](roc_curve.png)
+
+
